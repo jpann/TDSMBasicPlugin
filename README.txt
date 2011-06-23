@@ -1,0 +1,1 @@
+This is the start of a basic TDSM plugin. Not much here at the moment but I will use it as a test project for different TDSM plugin commands and I'm also working on exporting the Terraria items into an XML file.
