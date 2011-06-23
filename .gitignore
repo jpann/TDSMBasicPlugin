@@ -2,3 +2,10 @@
 *.csproj.user
 *.pidb
 *.userprefs
+/TDSMBasicPlugin/bin/Debug/TDSMBasicPlugin.dll
+/TDSMBasicPlugin/bin/Debug/TDSMBasicPlugin.pdb
+/TDSMBasicPlugin/obj/Debug/DesignTimeResolveAssemblyReferencesInput.cache
+/TDSMBasicPlugin/obj/Debug/ResolveAssemblyReference.cache
+/TDSMBasicPlugin/obj/Debug/TDSMBasicPlugin.csproj.FileListAbsolute.txt
+/TDSMBasicPlugin/obj/Debug/TDSMBasicPlugin.dll
+/TDSMBasicPlugin/obj/Debug/TDSMBasicPlugin.pdb
