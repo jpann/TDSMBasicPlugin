@@ -1,1 +1,20 @@
-This is the start of a basic TDSM plugin. Not much here at the moment but I will use it as a test project for different TDSM plugin commands and I'm also working on exporting the Terraria items into an XML file.
+This is the start of a basic TDSM plugin.
+
+Operator commands:
+
+/give <item> <stack size> <player>
+	
+- Item: Name of the item.
+- stack size: How many of the item to give.
+- player: Name of player to give item to.
+
+/heal [player]
+
+- player: Name of player to heal/mana restore. If this is left out, it will heal you.
+
+
+Server commands:
+
+exportitems <type>
+
+- type: Right now this only supports a type of 'json'
