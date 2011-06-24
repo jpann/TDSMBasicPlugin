@@ -7,12 +7,16 @@ using Terraria_Server.Plugin;
 using Terraria_Server;
 using Terraria_Server.Events;
 using Terraria_Server.Commands;
+using System.IO;
+using Newtonsoft.Json;
 
 namespace TDSMBasicPlugin
 {
     public class TDSMBasicPlugin : Plugin
     {
         public bool isEnabled = false;
+        private static string sPluginDir = null;
+        private static string sItemExportFile = "items";
 
         public override void Load()
         {
@@ -24,6 +28,14 @@ namespace TDSMBasicPlugin
 
             isEnabled = true;
 
+            sPluginDir = Statics.getPluginPath + Statics.systemSeperator + "TDSMBasic";
+            sItemExportFile = Path.Combine(sPluginDir, sItemExportFile);
+
+            if (!Program.createDirectory(sPluginDir, true))
+            {
+                Console.WriteLine("Failed to create crucial Folder");
+                return;
+            }
         }
 
         public override void Disable()
@@ -135,27 +147,40 @@ namespace TDSMBasicPlugin
         
         }
 
-        // This will eventually export all items into an XML file
         public static void ExportItems(Sender sender, string[] commands)
         {
+            string sFile = null;
+
             if (commands.Length > 1 && commands[1] != null && commands[1].Trim().Length > 0)
             {
-                string fileName = commands[1].Trim();
+                string sOutType = commands[1].Trim();
 
-                Console.WriteLine("Loading items...");
                 Item[] items = new Item[Main.maxItemTypes];
+
                 for (int i = 0; i < Main.maxItemTypes; i++)
                 {
                     items[i] = new Item();
                     items[i].SetDefaults(i);
-
-                    Console.WriteLine(string.Format("{0} - {1} [{2}]", i, items[i].name, items[i].toolTip));
                 }
-                Console.WriteLine(string.Format("{0} items loaded!", items.Count()));
+
+                try
+                {
+                    if (sOutType == "json")
+                        sFile = ItemSerializer.ObjectToJson(items, string.Format("{0}.{1}", sItemExportFile, sOutType));
+
+                    if (string.IsNullOrEmpty(sFile))
+                        throw new Exception("Output type not selected.");
+
+                    sender.sendMessage(string.Format("Items exported to {0}", sFile));
+                }
+                catch (Exception er)
+                {
+                    sender.sendMessage(string.Format("Error exporting items: {0}", er.Message));
+                }
             }
             else
             {
-                sender.sendMessage("Command Error: /exportitems <file>");
+                sender.sendMessage("Command Error: /exportitems <output type>");
             }
         }
 
