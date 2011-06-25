@@ -53,7 +53,7 @@ namespace TDSMBasicPlugin
             this.registerHook(Hooks.PLAYER_COMMAND);
             this.registerHook(Hooks.PLAYER_CHAT);
             this.registerHook(Hooks.PLAYER_CHEST);
-            //this.registerHook(Hooks.PLAYER_HURT);
+            this.registerHook(Hooks.PLAYER_HURT);
             this.registerHook(Hooks.PLAYER_LOGIN);
             this.registerHook(Hooks.PLAYER_LOGOUT);
             this.registerHook(Hooks.PLAYER_PARTYCHANGE);
@@ -61,9 +61,15 @@ namespace TDSMBasicPlugin
             this.registerHook(Hooks.PLAYER_STATEUPDATE);
             this.registerHook(Hooks.CONSOLE_COMMAND);
             this.registerHook(Hooks.PLAYER_LOGIN);
+            this.registerHook(Hooks.PLAYER_DEATH);
         }
 
         #region Hooks
+        public override void onPlayerDeath(PlayerDeathEvent Event)
+        {
+
+        }
+
         public override void onPlayerCommand(PlayerCommandEvent Event)
         {
             if (isEnabled == false) { return; }
@@ -126,10 +132,10 @@ namespace TDSMBasicPlugin
             }
         }
 
-        //public override void onPlayerHurt(PlayerHurtEvent Event) 
-        //{
-        //    Event.setCancelled(false);
-        //}
+        public override void onPlayerHurt(PlayerHurtEvent Event)
+        {
+            Event.setCancelled(false);
+        }
 
         public override void onPlayerJoin(LoginEvent Event) 
         {
