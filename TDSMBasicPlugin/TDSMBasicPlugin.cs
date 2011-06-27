@@ -18,6 +18,8 @@ namespace TDSMBasicPlugin
         public bool isEnabled = false;
         private static string sPluginDir = null;
         private static string sItemExportFile = "items";
+        private static string sPrivMsgFormat = "<{0}> {1}"; // <from> <message>
+        private static int[] nPrivMsgColor = new int[] { 255, 127, 36 };
 
         public override void Load()
         {
@@ -97,7 +99,12 @@ namespace TDSMBasicPlugin
                     else 
                     // Normal player commands
                     {
-
+                        // Private messaging
+                        if (commands[0].Equals("/msg") || commands[0].Equals("/m"))
+                        {
+                            PrivateMessage(Event.getSender(), commands);
+                            Event.setCancelled(true);
+                        }
                     }
                 }
             }
@@ -399,9 +406,51 @@ namespace TDSMBasicPlugin
                 Program.tConsole.WriteLine(string.Format("Exception Stack Trace:\n\r{0}", er.StackTrace));
             }
         }
+
+        // Private message a player
+        public static void PrivateMessage(Sender sender, string[] commands)
+        {
+            string sCommand = Program.mergeStrArray(commands);
+
+            if (!(sender is Player))
+            {
+                return;
+            }
+
+            // /msg <player> <message>
+            Match match = Regex.Match(sCommand, @"/[msg|m]\s+(?<player>[A-Z-a-z0-9\ ]+)\s+(?<msg>.+)?", RegexOptions.IgnoreCase);
+            if (match.Success)
+            {
+                string playerName = match.Groups["player"].Value;
+                string message = match.Groups["msg"].Value;
+
+                Player player = Program.server.GetPlayerByName(playerName);
+                if (player != null)
+                {
+                    PrivateMessagePlayer((Player)sender, player, message);
+                }
+                else
+                {
+                    sender.sendMessage("Player not found!");
+                }
+            }
+            else
+            {
+                sender.sendMessage("Command Error: /msg <player> <message>");
+            }
+        }
         #endregion
 
         #region Methods
+        public static void PrivateMessagePlayer(Player PlayerFrom, Player PlayerTo, string Message)
+        {
+            if (PlayerFrom == null || PlayerTo == null)
+                return;
+
+            if (!string.IsNullOrEmpty(Message))
+                PlayerTo.sendMessage(string.Format(sPrivMsgFormat, PlayerFrom.name, Message), 255, nPrivMsgColor[0], nPrivMsgColor[1], nPrivMsgColor[2]);
+        }
+
         public static void RestorePlayerHealth(Sender sender, Player player)
         {
             Item heart = GetItemById(58);
