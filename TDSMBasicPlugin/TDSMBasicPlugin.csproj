@@ -45,11 +45,12 @@
     <Reference Include="Terraria_Server, Version=1.0.0.0, Culture=neutral, processorArchitecture=x86">
       <SpecificVersion>False</SpecificVersion>
       <ExecutableExtension>.exe</ExecutableExtension>
-      <HintPath>bin\Debug\Terraria_Server.exe</HintPath>
+      <HintPath>..\..\Terraria-s-Dedicated-Server-Mod\Terraria_Server\bin\Debug\Terraria_Server.exe</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ItemSerializer.cs" />
+    <Compile Include="PrivateMessageManager.cs" />
     <Compile Include="TDSMBasicPlugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

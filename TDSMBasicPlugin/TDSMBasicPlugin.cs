@@ -18,8 +18,7 @@ namespace TDSMBasicPlugin
         public bool isEnabled = false;
         private static string sPluginDir = null;
         private static string sItemExportFile = "items";
-        private static string sPrivMsgFormat = "<{0}> {1}"; // <from> <message>
-        private static int[] nPrivMsgColor = new int[] { 255, 127, 36 };
+        private static PrivateMessageManager oPrivateMsgManager = null;
 
         public override void Load()
         {
@@ -39,6 +38,8 @@ namespace TDSMBasicPlugin
                 Console.WriteLine("Failed to create crucial Folder");
                 return;
             }
+
+            oPrivateMsgManager = new PrivateMessageManager();
         }
 
         public override void Disable()
@@ -64,9 +65,10 @@ namespace TDSMBasicPlugin
             this.registerHook(Hooks.CONSOLE_COMMAND);
             this.registerHook(Hooks.PLAYER_LOGIN);
             this.registerHook(Hooks.PLAYER_DEATH);
+            //this.registerHook(Hooks.SERVER_MESSAGE); // TODO Need to add this hook so we can catch private messages when they go out to players
         }
-
         #region Hooks
+
         public override void onPlayerDeath(PlayerDeathEvent Event)
         {
 
@@ -78,34 +80,47 @@ namespace TDSMBasicPlugin
             string[] commands = Event.getMessage().ToLower().Split(' ');
             if (commands.Length > 0)
             {
-                if (commands[0] != null && commands[0].Trim().Length > 0)
+                try
                 {
-                    // Op commands
-                    Player player = ((Player)Event.getSender());
-                    if (CheckForOp(player))
+                    if (commands[0] != null && commands[0].Trim().Length > 0)
                     {
-                        if (commands[0].Equals("/give"))
+                        // Op commands
+                        Player player = ((Player)Event.getSender());
+                        if (CheckForOp(player))
                         {
-                            Give(Event.getSender(), commands);
-                            Event.setCancelled(true);
+                            if (commands[0].Equals("/give"))
+                            {
+                                Give(Event.getSender(), commands);
+                                Event.setCancelled(true);
+                            }
+                            else if (commands[0].Equals("/heal"))
+                            {
+                                Heal(Event.getSender(), commands);
+                                Event.setCancelled(true);
+                            }
                         }
-
-                        if (commands[0].Equals("/heal"))
+                        else
+                        // Normal player commands
                         {
-                            Heal(Event.getSender(), commands);
-                            Event.setCancelled(true);
+                            // Private message
+                            if (commands[0].Equals("/msg"))
+                            {
+                                PrivateMessage(Event.getSender(), commands);
+                                Event.setCancelled(true);
+                            }
+                            // Reply to last private message
+                            else if (commands[0].Equals("/reply"))
+                            {
+                                ReplyMessage(Event.getSender(), commands);
+                                Event.setCancelled(true);
+                            }
                         }
                     }
-                    else 
-                    // Normal player commands
-                    {
-                        // Private messaging
-                        if (commands[0].Equals("/msg") || commands[0].Equals("/m"))
-                        {
-                            PrivateMessage(Event.getSender(), commands);
-                            Event.setCancelled(true);
-                        }
-                    }
+                }
+                catch (Exception er)
+                {
+                    Event.getSender().sendMessage(string.Format("Error: {0}", er.Message));
+                    Console.WriteLine(string.Format("Error processing command '{0}': {1}", commands[0], er.Message));
                 }
             }
         }
@@ -117,7 +132,19 @@ namespace TDSMBasicPlugin
 
         public override void onPlayerChat(PlayerChatEvent Event) 
         { 
-        
+            //TODO Need to hook messages sent by the server instead
+
+            //Sender oSender = Event.getSender();
+            //if (oSender is Player)
+            //{
+            //    string sMessage = Event.getMessage();
+
+            //    if (sMessage.StartsWith(oPrivateMsgManager.GetPrivateMessageIndicator))
+            //    {
+            //        // Private message
+            //        //oPrivateMsgManager.UpdatePlayerSetting(
+            //    }
+            //}
         }
 
         public override void onPlayerCommandProcess(ConsoleCommandEvent Event)
@@ -407,7 +434,33 @@ namespace TDSMBasicPlugin
             }
         }
 
+        // Reply to last received message
+        // TODO Add exception handling
+        public static void ReplyMessage(Sender sender, string[] commands)
+        {
+            string sCommand = Program.mergeStrArray(commands);
+
+            if (!(sender is Player))
+            {
+                return;
+            }
+
+            // /reply <message>
+            Match match = Regex.Match(sCommand, @"/reply\s+(?<msg>.+)?", RegexOptions.IgnoreCase);
+            if (match.Success)
+            {
+                string message = match.Groups["msg"].Value;
+
+                oPrivateMsgManager.SendReply((Player)sender, message);
+            }
+            else
+            {
+                sender.sendMessage("Command Error: /reply <message>");
+            }
+        }
+
         // Private message a player
+        // TODO Add exception handling
         public static void PrivateMessage(Sender sender, string[] commands)
         {
             string sCommand = Program.mergeStrArray(commands);
@@ -418,7 +471,7 @@ namespace TDSMBasicPlugin
             }
 
             // /msg <player> <message>
-            Match match = Regex.Match(sCommand, @"/[msg|m]\s+(?<player>[A-Z-a-z0-9\ ]+)\s+(?<msg>.+)?", RegexOptions.IgnoreCase);
+            Match match = Regex.Match(sCommand, @"/msg\s+(?<player>[A-Z-a-z0-9\ ]+)\s+(?<msg>.+)?", RegexOptions.IgnoreCase);
             if (match.Success)
             {
                 string playerName = match.Groups["player"].Value;
@@ -447,8 +500,7 @@ namespace TDSMBasicPlugin
             if (PlayerFrom == null || PlayerTo == null)
                 return;
 
-            if (!string.IsNullOrEmpty(Message))
-                PlayerTo.sendMessage(string.Format(sPrivMsgFormat, PlayerFrom.name, Message), 255, nPrivMsgColor[0], nPrivMsgColor[1], nPrivMsgColor[2]);
+            oPrivateMsgManager.SendMessage(PlayerTo, PlayerFrom, Message, true); //test
         }
 
         public static void RestorePlayerHealth(Sender sender, Player player)
@@ -545,6 +597,11 @@ namespace TDSMBasicPlugin
             items = null;
 
             return item;
+        }
+
+        public static string GetPluginDirectory()
+        {
+            return sPluginDir;
         }
         #endregion
     }
