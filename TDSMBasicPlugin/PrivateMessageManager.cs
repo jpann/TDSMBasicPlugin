@@ -10,6 +10,8 @@ namespace TDSMBasicPlugin
 {
     public class PrivateMessageManager
     {
+        public Server Server { get; set; }
+
         private string sSettingsFile = "playersprivmsg.json";
 
         private string sMessageIndicator = "*PM* ";
@@ -149,6 +151,7 @@ namespace TDSMBasicPlugin
             PlayerPrivateMessageSettings oPlayerSetting = new PlayerPrivateMessageSettings();
             oPlayerSetting.Player = Player;
             oPlayerSetting.PrivateMessageEnabled = true;
+            oPlayerSetting.PlayerName = Player.name;
             oPlayerSettings.Add(oPlayerSetting);
 
             return oPlayerSetting;
@@ -171,6 +174,7 @@ namespace TDSMBasicPlugin
             }
 
             oPlayerSetting.LastMessageFrom = PlayerFrom;
+            oPlayerSetting.LastMessageFromName = PlayerFrom.name;
         }
 
         public PlayerPrivateMessageSettings GetPlayerSetting(Player Player)
@@ -178,7 +182,7 @@ namespace TDSMBasicPlugin
             if (Player == null)
                 throw new Exception("Invalid player");
 
-            var oPlayerObject = from player in oPlayerSettings where player.Player == Player select player;
+            var oPlayerObject = from player in oPlayerSettings where player.PlayerName == Player.name select player;
             PlayerPrivateMessageSettings oPlayerSetting = (PlayerPrivateMessageSettings)oPlayerObject.FirstOrDefault<PlayerPrivateMessageSettings>();
             if (oPlayerSetting is PlayerPrivateMessageSettings)
             {
@@ -193,7 +197,7 @@ namespace TDSMBasicPlugin
             if (Player == null)
                 throw new Exception("Invalid player");
 
-            var oPlayerObject = from player in oPlayerSettings where player.Player == Player select player;
+            var oPlayerObject = from player in oPlayerSettings where player.PlayerName == Player.name select player;
             PlayerPrivateMessageSettings oPlayerSetting = (PlayerPrivateMessageSettings)oPlayerObject.FirstOrDefault<PlayerPrivateMessageSettings>();
             if (oPlayerSetting != null)
                 return true;
@@ -206,11 +210,15 @@ namespace TDSMBasicPlugin
             if (Player == null)
                 throw new Exception("Invalid player");
 
-            var oPlayerObject = from player in oPlayerSettings where player.Player == Player select player;
+            //var oPlayerObject = from player in oPlayerSettings where player.Player == Player select player;
+            var oPlayerObject = from player in oPlayerSettings where player.PlayerName == Player.name select player;
             PlayerPrivateMessageSettings oPlayerSetting = (PlayerPrivateMessageSettings)oPlayerObject.FirstOrDefault<PlayerPrivateMessageSettings>();
 
             if (oPlayerSetting != null)
             {
+                if (oPlayerSetting.LastMessageFrom == null)
+                    oPlayerSetting.LastMessageFrom = this.Server.GetPlayerByName(Player.name);
+
                 return oPlayerSetting.LastMessageFrom;
             }
             else
@@ -266,8 +274,16 @@ namespace TDSMBasicPlugin
 
     public class PlayerPrivateMessageSettings
     {
+        [JsonIgnore]
         public Player Player { get; set; }
+
+        public string PlayerName { get; set; }
+
+        [JsonIgnore]
         public Player LastMessageFrom { get; set; }
+
+        public string LastMessageFromName { get; set; }
+
         public bool PrivateMessageEnabled { get; set; }
 
         public PlayerPrivateMessageSettings()

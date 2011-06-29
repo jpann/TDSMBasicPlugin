@@ -40,6 +40,7 @@ namespace TDSMBasicPlugin
             }
 
             oPrivateMsgManager = new PrivateMessageManager();
+            oPrivateMsgManager.Server = this.Server;
         }
 
         public override void Disable()
@@ -154,6 +155,16 @@ namespace TDSMBasicPlugin
                     if (commands[0].Equals("exportitems"))
                     {
                         ExportItems(Event.getSender(), commands);
+
+                        Event.setCancelled(true);
+                    }
+                }
+
+                if (commands[0] != null && commands[0].Trim().Length > 0)
+                {
+                    if (commands[0].Equals("save-settings"))
+                    {
+                        oPrivateMsgManager.Unload();
 
                         Event.setCancelled(true);
                     }
@@ -536,7 +547,6 @@ namespace TDSMBasicPlugin
         #endregion
 
         #region Methods
-
         public static void PrivateMessagePlayer(Player PlayerFrom, Player PlayerTo, string Message)
         {
             if (PlayerFrom == null || PlayerTo == null)
