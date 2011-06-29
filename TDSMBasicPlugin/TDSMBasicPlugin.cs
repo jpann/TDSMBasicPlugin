@@ -46,6 +46,8 @@ namespace TDSMBasicPlugin
         {
             Console.WriteLine(base.Name + " disabled.");
             isEnabled = false;
+
+            oPrivateMsgManager.Unload();
         }
 
         public override void Enable()
@@ -65,8 +67,8 @@ namespace TDSMBasicPlugin
             this.registerHook(Hooks.CONSOLE_COMMAND);
             this.registerHook(Hooks.PLAYER_LOGIN);
             this.registerHook(Hooks.PLAYER_DEATH);
-            //this.registerHook(Hooks.SERVER_MESSAGE); // TODO Need to add this hook so we can catch private messages when they go out to players
         }
+
         #region Hooks
 
         public override void onPlayerDeath(PlayerDeathEvent Event)
@@ -109,9 +111,14 @@ namespace TDSMBasicPlugin
                                 Event.setCancelled(true);
                             }
                             // Reply to last private message
-                            else if (commands[0].Equals("/reply"))
+                            else if (commands[0].Equals("/reply") || commands[0].Equals("/r"))
                             {
                                 ReplyMessage(Event.getSender(), commands);
+                                Event.setCancelled(true);
+                            }
+                            else if (commands[0].Equals("/privmsg"))
+                            {
+                                PrivateMessageEnableDisable(Event.getSender(), commands);
                                 Event.setCancelled(true);
                             }
                         }
@@ -132,19 +139,7 @@ namespace TDSMBasicPlugin
 
         public override void onPlayerChat(PlayerChatEvent Event) 
         { 
-            //TODO Need to hook messages sent by the server instead
 
-            //Sender oSender = Event.getSender();
-            //if (oSender is Player)
-            //{
-            //    string sMessage = Event.getMessage();
-
-            //    if (sMessage.StartsWith(oPrivateMsgManager.GetPrivateMessageIndicator))
-            //    {
-            //        // Private message
-            //        //oPrivateMsgManager.UpdatePlayerSetting(
-            //    }
-            //}
         }
 
         public override void onPlayerCommandProcess(ConsoleCommandEvent Event)
@@ -242,6 +237,36 @@ namespace TDSMBasicPlugin
         #endregion
 
         #region Command Methods
+        public static void PrivateMessageEnableDisable(Sender sender, string[] commands)
+        {
+            string sCommand = Program.mergeStrArray(commands);
+
+            if (!(sender is Player))
+            {
+                return;
+            }
+
+            // /reply <message>
+            Match match = Regex.Match(sCommand, @"/privmsg\s+(?<flag>[on|off]+)?", RegexOptions.IgnoreCase);
+            if (match.Success)
+            {
+                string flag = match.Groups["flag"].Value;
+
+                if (flag.Equals("on"))
+                {
+                    oPrivateMsgManager.PrivateMessageEnableDisable((Player)sender, true);
+                }
+                else if (flag.Equals("off"))
+                {
+                    oPrivateMsgManager.PrivateMessageEnableDisable((Player)sender, false);
+                }
+            }
+            else
+            {
+                sender.sendMessage("Command Error: /privmsg <on|off>");
+            }
+        }
+
         // Taken from the TDSM Forums
         public static void Give(Sender sender, string[] commands)
         {
@@ -446,12 +471,20 @@ namespace TDSMBasicPlugin
             }
 
             // /reply <message>
-            Match match = Regex.Match(sCommand, @"/reply\s+(?<msg>.+)?", RegexOptions.IgnoreCase);
+            Match match = Regex.Match(sCommand, @"/[r|reply]\s+(?<msg>.+)?", RegexOptions.IgnoreCase);
             if (match.Success)
             {
                 string message = match.Groups["msg"].Value;
 
-                oPrivateMsgManager.SendReply((Player)sender, message);
+                try
+                {
+                    oPrivateMsgManager.SendReply((Player)sender, message);
+                }
+                catch (Exception er)
+                {
+                    sender.sendMessage(string.Format("Reply Error: {0}", er.Message));
+                    Console.WriteLine(string.Format("Reply Error: {0}", er.Message));
+                }
             }
             else
             {
@@ -480,7 +513,15 @@ namespace TDSMBasicPlugin
                 Player player = Program.server.GetPlayerByName(playerName);
                 if (player != null)
                 {
-                    PrivateMessagePlayer((Player)sender, player, message);
+                    try
+                    {
+                        PrivateMessagePlayer((Player)sender, player, message);
+                    }
+                    catch (Exception er)
+                    {
+                        sender.sendMessage(string.Format("Private Message Error: {0}", er.Message));
+                        Console.WriteLine(string.Format("Private Message Error: {0}", er.Message));
+                    }
                 }
                 else
                 {
@@ -495,6 +536,7 @@ namespace TDSMBasicPlugin
         #endregion
 
         #region Methods
+
         public static void PrivateMessagePlayer(Player PlayerFrom, Player PlayerTo, string Message)
         {
             if (PlayerFrom == null || PlayerTo == null)

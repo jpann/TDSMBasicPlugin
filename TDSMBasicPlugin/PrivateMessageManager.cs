@@ -12,7 +12,7 @@ namespace TDSMBasicPlugin
     {
         private string sSettingsFile = "playersprivmsg.json";
 
-        private string sMessageIndicator = "*P ";
+        private string sMessageIndicator = "*PM* ";
         private string sMessageFormat = "{0}<{1}> {2}"; // <message indicator> <from> <message>
         private int[] nMessageColor = new int[] { 255, 127, 36 };
         private List<PlayerPrivateMessageSettings> oPlayerSettings = null;
@@ -23,6 +23,11 @@ namespace TDSMBasicPlugin
         }
 
         ~PrivateMessageManager()
+        {
+            this.SavePlayerSettings();
+        }
+
+        public void Unload()
         {
             this.SavePlayerSettings();
         }
@@ -43,6 +48,7 @@ namespace TDSMBasicPlugin
             }
         }
 
+        //TODO Need to export to XML or something since serializing dumps the entire player objects as well
         private void SavePlayerSettings()
         {
             string sFile = Path.Combine(TDSMBasicPlugin.GetPluginDirectory(), sSettingsFile);
@@ -57,14 +63,33 @@ namespace TDSMBasicPlugin
             }
         }
 
+        public void PrivateMessageEnableDisable(Player Player, bool EnableDisableFlag)
+        {
+            if (Player == null)
+                throw new Exception("Invalid player");
+
+            PlayerPrivateMessageSettings oPlayerSetting = this.GetPlayerSetting(Player);
+            if (oPlayerSetting == null)
+            {
+                oPlayerSetting = this.CreatePlayerSetting(Player);
+            }
+
+            oPlayerSetting.PrivateMessageEnabled = EnableDisableFlag;
+
+            if (EnableDisableFlag)
+                Player.sendMessage("Private messaging is now enabled");
+            else
+                Player.sendMessage("Private messaging is now disabled");
+        }
+
         public void SendReply(Player PlayerFrom, string Message)
         {
             if (PlayerFrom == null)
-                throw new Exception("Invalid players");
+                throw new Exception("Invalid player");
 
             if (!string.IsNullOrEmpty(Message))
             {
-                Player oPlayerTo = this.GetLastPlayerSentTo(PlayerFrom);
+                Player oPlayerTo = this.GetLastPlayerMessageFrom(PlayerFrom);
                 if (oPlayerTo != null)
                 {
                     this.SendMessage(oPlayerTo, PlayerFrom, Message, true);
@@ -92,12 +117,14 @@ namespace TDSMBasicPlugin
 
             if (!string.IsNullOrEmpty(Message))
             {
-                PlayerPrivateMessageSettings oPlayerSetting = this.GetPlayerSetting(PlayerTo);
-                if (oPlayerSetting != null)
+                PlayerPrivateMessageSettings oPlayerToSetting = this.GetPlayerSetting(PlayerTo);
+
+                if (oPlayerToSetting != null)
                 {
-                    if (oPlayerSetting.PrivateMessageEnabled)
+                    if (oPlayerToSetting.PrivateMessageEnabled)
                     {
                         PlayerTo.sendMessage(string.Format(sMessageFormat, sPrivMessageIndicator, PlayerFrom.name, Message), 255, nMessageColor[0], nMessageColor[1], nMessageColor[2]);
+                        this.UpdateLastMessageFrom(PlayerTo, PlayerFrom);
                     }
                     else
                     {
@@ -107,6 +134,7 @@ namespace TDSMBasicPlugin
                 else
                 {
                     PlayerTo.sendMessage(string.Format(sMessageFormat, sPrivMessageIndicator, PlayerFrom.name, Message), 255, nMessageColor[0], nMessageColor[1], nMessageColor[2]);
+                    this.UpdateLastMessageFrom(PlayerTo, PlayerFrom);
                 }
             }
             else
@@ -120,26 +148,26 @@ namespace TDSMBasicPlugin
 
             PlayerPrivateMessageSettings oPlayerSetting = new PlayerPrivateMessageSettings();
             oPlayerSetting.Player = Player;
-            oPlayerSetting.PrivateMessageEnabled = false;
+            oPlayerSetting.PrivateMessageEnabled = true;
             oPlayerSettings.Add(oPlayerSetting);
 
             return oPlayerSetting;
         }
 
-        public void UpdatePlayerSetting(Player Player, Player PlayerFrom)
+        public void UpdateLastMessageFrom(Player PlayerTo, Player PlayerFrom)
         {
-            if (Player == null || PlayerFrom == null)
+            if (PlayerTo == null || PlayerFrom == null)
                 throw new Exception("Invalid player");
 
             PlayerPrivateMessageSettings oPlayerSetting = null;
 
-            if (!this.PlayerSettingExists(Player))
+            if (!this.PlayerSettingExists(PlayerTo))
             {
-                oPlayerSetting = this.CreatePlayerSetting(Player);
+                oPlayerSetting = this.CreatePlayerSetting(PlayerTo);
             }
             else
             {
-                oPlayerSetting = this.GetPlayerSetting(Player);
+                oPlayerSetting = this.GetPlayerSetting(PlayerTo);
             }
 
             oPlayerSetting.LastMessageFrom = PlayerFrom;
@@ -150,11 +178,10 @@ namespace TDSMBasicPlugin
             if (Player == null)
                 throw new Exception("Invalid player");
 
-            var oPlayer = from player in oPlayerSettings where player.Player == Player select player;
-            if (oPlayer is PlayerPrivateMessageSettings)
+            var oPlayerObject = from player in oPlayerSettings where player.Player == Player select player;
+            PlayerPrivateMessageSettings oPlayerSetting = (PlayerPrivateMessageSettings)oPlayerObject.FirstOrDefault<PlayerPrivateMessageSettings>();
+            if (oPlayerSetting is PlayerPrivateMessageSettings)
             {
-                PlayerPrivateMessageSettings oPlayerSetting = (PlayerPrivateMessageSettings)oPlayer;
-
                 return oPlayerSetting;
             }
             else
@@ -166,28 +193,30 @@ namespace TDSMBasicPlugin
             if (Player == null)
                 throw new Exception("Invalid player");
 
-            var oPlayer = from player in oPlayerSettings where player.Player == Player select player;
-            if (oPlayer is PlayerPrivateMessageSettings)
+            var oPlayerObject = from player in oPlayerSettings where player.Player == Player select player;
+            PlayerPrivateMessageSettings oPlayerSetting = (PlayerPrivateMessageSettings)oPlayerObject.FirstOrDefault<PlayerPrivateMessageSettings>();
+            if (oPlayerSetting != null)
                 return true;
             else
                 return false;
         }
 
-        public Player GetLastPlayerSentTo(Player Player)
+        public Player GetLastPlayerMessageFrom(Player Player)
         {
             if (Player == null)
                 throw new Exception("Invalid player");
 
-            var oPlayer = from player in oPlayerSettings where player.Player == Player select player;
-            if (oPlayer is PlayerPrivateMessageSettings)
-            {
-                PlayerPrivateMessageSettings oPlayerSetting = (PlayerPrivateMessageSettings)oPlayer;
+            var oPlayerObject = from player in oPlayerSettings where player.Player == Player select player;
+            PlayerPrivateMessageSettings oPlayerSetting = (PlayerPrivateMessageSettings)oPlayerObject.FirstOrDefault<PlayerPrivateMessageSettings>();
 
+            if (oPlayerSetting != null)
+            {
                 return oPlayerSetting.LastMessageFrom;
             }
             else
                 return null;
         }
+
         #region Properties
         public string GetPrivateMessageIndicator
         {
@@ -240,5 +269,17 @@ namespace TDSMBasicPlugin
         public Player Player { get; set; }
         public Player LastMessageFrom { get; set; }
         public bool PrivateMessageEnabled { get; set; }
+
+        public PlayerPrivateMessageSettings()
+        {
+            this.PrivateMessageEnabled = true;
+        }
+
+        public PlayerPrivateMessageSettings(Player Player, Player PlayerFrom, bool PrivateMessageFlag)
+        {
+            this.Player = Player;
+            this.LastMessageFrom = PlayerFrom;
+            this.PrivateMessageEnabled = PrivateMessageFlag;
+        }
     }
 }
