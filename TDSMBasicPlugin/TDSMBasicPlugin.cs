@@ -26,6 +26,7 @@ namespace TDSMBasicPlugin
             Description = "TDSMBasicPlugin.";
             Author = "attak";
             Version = "1";
+            TDSMBuild = 12;
             ServerProtocol = "1.05";
 
             isEnabled = true;
@@ -177,17 +178,17 @@ namespace TDSMBasicPlugin
             Event.setCancelled(false);
         }
 
-        public override void onPlayerJoin(LoginEvent Event) 
+        public override void onPlayerJoin(PlayerLoginEvent Event) 
         {
             Event.setCancelled(false);
         }
 
-        public override void onPlayerPreLogin(LoginEvent Event) 
+        public override void onPlayerPreLogin(PlayerLoginEvent Event) 
         {
             Event.setCancelled(false);
         }
 
-        public override void onPlayerLogout(LogoutEvent Event)
+        public override void onPlayerLogout(PlayerLogoutEvent Event)
         {
             Event.setCancelled(false);
         }
@@ -278,7 +279,7 @@ namespace TDSMBasicPlugin
             }
         }
 
-        // Taken from the TDSM Forums
+        // Taken from the TDSM Forums but slightly modified
         public static void Give(Sender sender, string[] commands)
         {
             string sCommand = Program.mergeStrArray(commands);
@@ -515,7 +516,7 @@ namespace TDSMBasicPlugin
             }
 
             // /msg <player> <message>
-            Match match = Regex.Match(sCommand, @"/msg\s+(?<player>[A-Z-a-z0-9\ ]+)\s+(?<msg>.+)?", RegexOptions.IgnoreCase);
+            Match match = Regex.Match(sCommand, @"/[m|msg]\s+(?<player>[A-Z-a-z0-9\ ]+)\s+(?<msg>.+)?", RegexOptions.IgnoreCase);
             if (match.Success)
             {
                 string playerName = match.Groups["player"].Value;
