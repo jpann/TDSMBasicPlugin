@@ -82,43 +82,57 @@ namespace TDSMBasicPlugin
         {
             if (isEnabled == false) { return; }
             string[] commands = Event.getMessage().ToLower().Split(' ');
+            string sCommand = Event.getMessage().ToLower();
             if (commands.Length > 0)
             {
                 try
                 {
-                    if (commands[0] != null && commands[0].Trim().Length > 0)
+                    string sPlayerCmdPrivMsg = @"/privmsg\s+(?<flag>[on|off]+)?";
+                    string sPlayerCmdHeal = @"/heal\s+(?<player>.+)?";
+                    string sPlayerCmdReply = @"/[r|reply]\s+(?<msg>.+)?";
+                    string sPlayerCmdMessage = @"/[m|msg]\s+(?<player>[A-Z-a-z0-9\ ]+)\s+(?<msg>.+)?";
+
+                    Player oPlayer = ((Player)Event.getSender());
+                    Match commandMatch;
+
+                    if (CheckForOp(oPlayer))
                     {
                         // Op commands
-                        Player player = ((Player)Event.getSender());
-                        if (CheckForOp(player))
+                        commandMatch = Regex.Match(sCommand, sPlayerCmdHeal, RegexOptions.IgnoreCase);
+                        if (commandMatch.Success)
                         {
-                            if (commands[0].Equals("/heal"))
-                            {
-                                Heal(Event.getSender(), commands);
-                                Event.setCancelled(true);
-                            }
+                            // Heal
+                            Heal(Event.getSender(), commandMatch);
+                            Event.setCancelled(true);
+                            return;
                         }
-                        else
-                        // Normal player commands
-                        {
-                            // Private message
-                            if (commands[0].Equals("/msg"))
-                            {
-                                PrivateMessage(Event.getSender(), commands);
-                                Event.setCancelled(true);
-                            }
-                            // Reply to last private message
-                            else if (commands[0].Equals("/reply") || commands[0].Equals("/r"))
-                            {
-                                ReplyMessage(Event.getSender(), commands);
-                                Event.setCancelled(true);
-                            }
-                            else if (commands[0].Equals("/privmsg"))
-                            {
-                                PrivateMessageEnableDisable(Event.getSender(), commands);
-                                Event.setCancelled(true);
-                            }
-                        }
+                    }
+
+                    commandMatch = Regex.Match(sCommand, sPlayerCmdPrivMsg, RegexOptions.IgnoreCase);
+                    if (commandMatch.Success)
+                    {
+                        // PrivMsg On/Off
+                        PrivateMessage(Event.getSender(), commandMatch);
+                        Event.setCancelled(true);
+                        return;
+                    }
+
+                    commandMatch = Regex.Match(sCommand, sPlayerCmdReply, RegexOptions.IgnoreCase);
+                    if (commandMatch.Success)
+                    {
+                        // Reply
+                        ReplyMessage(Event.getSender(), commandMatch);
+                        Event.setCancelled(true);
+                        return;
+                    }
+
+                    commandMatch = Regex.Match(sCommand, sPlayerCmdMessage, RegexOptions.IgnoreCase);
+                    if (commandMatch.Success)
+                    {
+                        // Message
+                        PrivateMessage(Event.getSender(), commandMatch);
+                        Event.setCancelled(true);
+                        return;
                     }
                 }
                 catch (Exception er)
@@ -244,17 +258,13 @@ namespace TDSMBasicPlugin
         #endregion
 
         #region Command Methods
-        public static void PrivateMessageEnableDisable(Sender sender, string[] commands)
+        public static void PrivateMessageEnableDisable(Sender sender, Match match)
         {
-            string sCommand = Program.mergeStrArray(commands);
-
             if (!(sender is Player))
             {
                 return;
             }
 
-            // /reply <message>
-            Match match = Regex.Match(sCommand, @"/privmsg\s+(?<flag>[on|off]+)?", RegexOptions.IgnoreCase);
             if (match.Success)
             {
                 string flag = match.Groups["flag"].Value;
@@ -395,9 +405,8 @@ namespace TDSMBasicPlugin
 
         // Heal player
 
-        public static void Heal(Sender sender, string[] commands)
+        public static void Heal(Sender sender, Match match)
         {
-            string sCommand = Program.mergeStrArray(commands);
             int stack = 20;
             Player player = null;
 
@@ -408,8 +417,6 @@ namespace TDSMBasicPlugin
 
             try
             {
-                // /heal <player>
-                Match match = Regex.Match(sCommand, @"/heal\s+(?<player>.+)?", RegexOptions.IgnoreCase);
                 if (match.Success)
                 {
                     string playerName = match.Groups["player"].Value;
@@ -468,18 +475,13 @@ namespace TDSMBasicPlugin
         }
 
         // Reply to last received message
-        // TODO Add exception handling
-        public static void ReplyMessage(Sender sender, string[] commands)
+        public static void ReplyMessage(Sender sender, Match match)
         {
-            string sCommand = Program.mergeStrArray(commands);
-
             if (!(sender is Player))
             {
                 return;
             }
 
-            // /reply <message>
-            Match match = Regex.Match(sCommand, @"/[r|reply]\s+(?<msg>.+)?", RegexOptions.IgnoreCase);
             if (match.Success)
             {
                 string message = match.Groups["msg"].Value;
@@ -501,18 +503,13 @@ namespace TDSMBasicPlugin
         }
 
         // Private message a player
-        // TODO Add exception handling
-        public static void PrivateMessage(Sender sender, string[] commands)
+        public static void PrivateMessage(Sender sender, Match match)
         {
-            string sCommand = Program.mergeStrArray(commands);
-
             if (!(sender is Player))
             {
                 return;
             }
 
-            // /msg <player> <message>
-            Match match = Regex.Match(sCommand, @"/[m|msg]\s+(?<player>[A-Z-a-z0-9\ ]+)\s+(?<msg>.+)?", RegexOptions.IgnoreCase);
             if (match.Success)
             {
                 string playerName = match.Groups["player"].Value;
