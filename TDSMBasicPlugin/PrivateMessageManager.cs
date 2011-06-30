@@ -12,10 +12,11 @@ namespace TDSMBasicPlugin
     {
         public Server Server { get; set; }
 
-        private string sSettingsFile = "playersprivmsg.json";
+        private string sSettingsFile = "player-privmsg-settings.json";
 
-        private string sMessageIndicator = "*PM* ";
-        private string sMessageFormat = "{0}<{1}> {2}"; // <message indicator> <from> <message>
+        private string sMessageIndicator = "";
+        private string sFromMessageFormat = "{0}<From: {1}> {2}";   // Parameters: <message indicator> <from> <message>
+        private string sToMessageFormat = "{0}<To: {1}> {2}";       // Parameters: <message indicator> <to> <message>
         private int[] nMessageColor = new int[] { 255, 127, 36 };
         private List<PlayerPrivateMessageSettings> oPlayerSettings = null;
 
@@ -50,7 +51,6 @@ namespace TDSMBasicPlugin
             }
         }
 
-        //TODO Need to export to XML or something since serializing dumps the entire player objects as well
         private void SavePlayerSettings()
         {
             string sFile = Path.Combine(TDSMBasicPlugin.GetPluginDirectory(), sSettingsFile);
@@ -125,7 +125,8 @@ namespace TDSMBasicPlugin
                 {
                     if (oPlayerToSetting.PrivateMessageEnabled)
                     {
-                        PlayerTo.sendMessage(string.Format(sMessageFormat, sPrivMessageIndicator, PlayerFrom.name, Message), 255, nMessageColor[0], nMessageColor[1], nMessageColor[2]);
+                        PlayerTo.sendMessage(string.Format(sFromMessageFormat, sPrivMessageIndicator, PlayerFrom.name, Message), 255, nMessageColor[0], nMessageColor[1], nMessageColor[2]);
+                        PlayerFrom.sendMessage(string.Format(sToMessageFormat, sPrivMessageIndicator, PlayerTo.name, Message), 255, nMessageColor[0], nMessageColor[1], nMessageColor[2]);
                         this.UpdateLastMessageFrom(PlayerTo, PlayerFrom);
                     }
                     else
@@ -135,7 +136,8 @@ namespace TDSMBasicPlugin
                 }
                 else
                 {
-                    PlayerTo.sendMessage(string.Format(sMessageFormat, sPrivMessageIndicator, PlayerFrom.name, Message), 255, nMessageColor[0], nMessageColor[1], nMessageColor[2]);
+                    PlayerTo.sendMessage(string.Format(sFromMessageFormat, sPrivMessageIndicator, PlayerFrom.name, Message), 255, nMessageColor[0], nMessageColor[1], nMessageColor[2]);
+                    PlayerFrom.sendMessage(string.Format(sToMessageFormat, sPrivMessageIndicator, PlayerTo.name, Message), 255, nMessageColor[0], nMessageColor[1], nMessageColor[2]);
                     this.UpdateLastMessageFrom(PlayerTo, PlayerFrom);
                 }
             }
@@ -210,14 +212,12 @@ namespace TDSMBasicPlugin
             if (Player == null)
                 throw new Exception("Invalid player");
 
-            //var oPlayerObject = from player in oPlayerSettings where player.Player == Player select player;
             var oPlayerObject = from player in oPlayerSettings where player.PlayerName == Player.name select player;
             PlayerPrivateMessageSettings oPlayerSetting = (PlayerPrivateMessageSettings)oPlayerObject.FirstOrDefault<PlayerPrivateMessageSettings>();
 
             if (oPlayerSetting != null)
             {
-                if (oPlayerSetting.LastMessageFrom == null)
-                    oPlayerSetting.LastMessageFrom = this.Server.GetPlayerByName(Player.name);
+                oPlayerSetting.LastMessageFrom = this.Server.GetPlayerByName(oPlayerSetting.LastMessageFromName);
 
                 return oPlayerSetting.LastMessageFrom;
             }
@@ -246,15 +246,27 @@ namespace TDSMBasicPlugin
             }
         }
 
-        public string MessageFormat
+        public string ToMessageFormat
         {
             get
             {
-                return sMessageFormat;
+                return sToMessageFormat;
             }
             set
             {
-                sMessageFormat = value;
+                sToMessageFormat = value;
+            }
+        }
+
+        public string FromMessageFormat
+        {
+            get
+            {
+                return sFromMessageFormat;
+            }
+            set
+            {
+                sFromMessageFormat = value;
             }
         }
 
