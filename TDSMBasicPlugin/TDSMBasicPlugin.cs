@@ -92,12 +92,7 @@ namespace TDSMBasicPlugin
                         Player player = ((Player)Event.getSender());
                         if (CheckForOp(player))
                         {
-                            if (commands[0].Equals("/give"))
-                            {
-                                Give(Event.getSender(), commands);
-                                Event.setCancelled(true);
-                            }
-                            else if (commands[0].Equals("/heal"))
+                            if (commands[0].Equals("/heal"))
                             {
                                 Heal(Event.getSender(), commands);
                                 Event.setCancelled(true);
@@ -280,125 +275,126 @@ namespace TDSMBasicPlugin
         }
 
         // Taken from the TDSM Forums but slightly modified
-        public static void Give(Sender sender, string[] commands)
-        {
-            string sCommand = Program.mergeStrArray(commands);
+        //public static void Give(Sender sender, string[] commands)
+        //{
+        //    string sCommand = Program.mergeStrArray(commands);
 
-            if (!(sender is Player))
-            {
-                return;
-            }
+        //    if (!(sender is Player))
+        //    {
+        //        return;
+        //    }
 
-            //TODO Need to redo this so it matches Heal()
+        //    //TODO Need to redo this so it matches Heal()
 
-            // /give <item> <stack> <player>
-            Match match = Regex.Match(sCommand, @"/give\s+(?<item>[A-Z-a-z0-9\ ]+)\s+(?<stack>[0-9]+)\s+(?<player>.+)?", RegexOptions.IgnoreCase);
-            if (match.Success)
-            {
-                string itemName = match.Groups["item"].Value;
-                string stack = match.Groups["stack"].Value;
-                string playerName = match.Groups["player"].Value;
+        //    // /give <item> <stack> <player>
+        //    Match match = Regex.Match(sCommand, @"/give\s+(?<item>[A-Z-a-z0-9\ ]+)\s+(?<stack>[0-9]+)\s+(?<player>.+)?", RegexOptions.IgnoreCase);
+        //    if (match.Success)
+        //    {
+        //        string itemName = match.Groups["item"].Value;
+        //        string stack = match.Groups["stack"].Value;
+        //        string playerName = match.Groups["player"].Value;
 
-                Player player = Program.server.GetPlayerByName(playerName);
-                if (player != null)
-                {
-                    Item[] items = new Item[Main.maxItemTypes];
-                    for (int i = 0; i < Main.maxItemTypes; i++)
-                    {
-                        items[i] = new Item();
-                        items[i].SetDefaults(i);
-                    }
+        //        Player player = Program.server.GetPlayerByName(playerName);
+        //        if (player != null)
+        //        {
+        //            Item[] items = new Item[Main.maxItemTypes];
+        //            for (int i = 0; i < Main.maxItemTypes; i++)
+        //            {
+        //                items[i] = new Item();
+        //                items[i].SetDefaults(i);
+        //            }
 
-                    Item item = null;
-                    itemName = itemName.Replace(" ", "").ToLower();
-                    for (int i = 0; i < Main.maxItemTypes; i++)
-                    {
-                        if (items[i].name != null)
-                        {
-                            string genItemName = items[i].name.Replace(" ", "").Trim().ToLower();
-                            if (genItemName == itemName)
-                            {
-                                item = items[i];
-                            }
-                        }
-                    }
+        //            Item item = null;
+        //            itemName = itemName.Replace(" ", "").ToLower();
+        //            for (int i = 0; i < Main.maxItemTypes; i++)
+        //            {
+        //                if (items[i].name != null)
+        //                {
+        //                    string genItemName = items[i].name.Replace(" ", "").Trim().ToLower();
+        //                    if (genItemName == itemName)
+        //                    {
+        //                        item = items[i];
+        //                    }
+        //                }
+        //            }
 
-                    int itemType = -1;
-                    bool assumed = false;
-                    if (item != null)
-                    {
-                        itemType = item.type;
-                    }
-                    else
-                    {
-                        int assumedItem;
-                        try
-                        {
-                            assumedItem = Int32.Parse(itemName);
-                        }
-                        catch (Exception)
-                        {
-                            sender.sendMessage("Item '" + itemName + "' not found!");
-                            return;
-                        }
+        //            int itemType = -1;
+        //            bool assumed = false;
+        //            if (item != null)
+        //            {
+        //                itemType = item.type;
+        //            }
+        //            else
+        //            {
+        //                int assumedItem;
+        //                try
+        //                {
+        //                    assumedItem = Int32.Parse(itemName);
+        //                }
+        //                catch (Exception)
+        //                {
+        //                    sender.sendMessage("Item '" + itemName + "' not found!");
+        //                    return;
+        //                }
 
-                        for (int i = 0; i < Main.maxItemTypes; i++)
-                        {
-                            if (items[i].type == assumedItem)
-                            {
-                                itemType = items[i].type;
-                                assumed = true;
-                                break;
-                            }
-                        }
+        //                for (int i = 0; i < Main.maxItemTypes; i++)
+        //                {
+        //                    if (items[i].type == assumedItem)
+        //                    {
+        //                        itemType = items[i].type;
+        //                        assumed = true;
+        //                        break;
+        //                    }
+        //                }
 
-                        if (!assumed)
-                        {
-                            sender.sendMessage("Item '" + itemName + "' not found!");
-                            return;
-                        }
-                    }
+        //                if (!assumed)
+        //                {
+        //                    sender.sendMessage("Item '" + itemName + "' not found!");
+        //                    return;
+        //                }
+        //            }
 
-                    //Clear Data
-                    for (int i = 0; i < Main.maxItemTypes; i++)
-                    {
-                        items[i] = null;
-                    }
-                    items = null;
+        //            //Clear Data
+        //            for (int i = 0; i < Main.maxItemTypes; i++)
+        //            {
+        //                items[i] = null;
+        //            }
+        //            items = null;
 
-                    if (itemType != -1)
-                    {
+        //            if (itemType != -1)
+        //            {
 
-                        int stackSize;
-                        try
-                        {
-                            stackSize = Int32.Parse(stack);
-                        }
-                        catch (Exception)
-                        {
-                            stackSize = 1;
-                        }
+        //                int stackSize;
+        //                try
+        //                {
+        //                    stackSize = Int32.Parse(stack);
+        //                }
+        //                catch (Exception)
+        //                {
+        //                    stackSize = 1;
+        //                }
 
-                        Item.NewItem((int)player.position.X, (int)player.position.Y, player.width, player.height, itemType, stackSize, false);
+        //                Item.NewItem((int)player.position.X, (int)player.position.Y, player.width, player.height, itemType, stackSize, false);
 
-                        Program.server.notifyOps("Giving " + player.name + " some " + itemType.ToString() + " {" + sender.getName() + "}", true);
+        //                Program.server.notifyOps("Giving " + player.name + " some " + itemType.ToString() + " {" + sender.getName() + "}", true);
 
-                        return;
-                    }
-                }
-                else
-                {
-                    sender.sendMessage("Player '" + playerName + "' not found!");
-                    return;
-                }
-            }
-            else
-            {
-                sender.sendMessage("Command Error: /give <item> <stack> <player>");
-            }
-        }
+        //                return;
+        //            }
+        //        }
+        //        else
+        //        {
+        //            sender.sendMessage("Player '" + playerName + "' not found!");
+        //            return;
+        //        }
+        //    }
+        //    else
+        //    {
+        //        sender.sendMessage("Command Error: /give <item> <stack> <player>");
+        //    }
+        //}
 
         // Heal player
+
         public static void Heal(Sender sender, string[] commands)
         {
             string sCommand = Program.mergeStrArray(commands);
