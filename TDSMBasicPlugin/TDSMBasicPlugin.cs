@@ -89,8 +89,8 @@ namespace TDSMBasicPlugin
                 {
                     string sPlayerCmdPrivMsg = @"/privmsg\s+(?<flag>[on|off]+)?";
                     string sPlayerCmdHeal = @"/heal\s+(?<player>.+)?";
-                    string sPlayerCmdReply = @"/[r|reply]\s+(?<msg>.+)?";
-                    string sPlayerCmdMessage = @"/[m|msg]\s+(?<player>[A-Z-a-z0-9\ ]+)\s+(?<msg>.+)?";
+                    string sPlayerCmdReply = @"/r\s+(?<msg>.+)?";
+                    string sPlayerCmdMessage = @"/msg\s+(?<player>[A-Z-a-z0-9\ ]+)\s+(?<msg>.+)?";
 
                     Player oPlayer = ((Player)Event.getSender());
                     Match commandMatch;

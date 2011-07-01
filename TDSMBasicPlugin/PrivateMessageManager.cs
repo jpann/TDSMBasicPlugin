@@ -5,6 +5,7 @@ using System.Text;
 using Terraria_Server;
 using System.IO;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace TDSMBasicPlugin
 {
@@ -18,6 +19,7 @@ namespace TDSMBasicPlugin
         private string sFromMessageFormat = "{0}<From: {1}> {2}";   // Parameters: <message indicator> <from> <message>
         private string sToMessageFormat = "{0}<To: {1}> {2}";       // Parameters: <message indicator> <to> <message>
         private int[] nMessageColor = new int[] { 255, 127, 36 };
+        private int nExpiration = 30;
         private List<PlayerPrivateMessageSettings> oPlayerSettings = null;
 
         public PrivateMessageManager()
@@ -48,11 +50,15 @@ namespace TDSMBasicPlugin
                 string json = File.ReadAllText(sFile);
 
                 oPlayerSettings = JsonConvert.DeserializeObject<List<PlayerPrivateMessageSettings>>(json);
+
+                RemoveExpiredSettings();
             }
         }
 
         private void SavePlayerSettings()
         {
+            RemoveExpiredSettings();
+
             string sFile = Path.Combine(TDSMBasicPlugin.GetPluginDirectory(), sSettingsFile);
 
             string json = JsonConvert.SerializeObject(oPlayerSettings, Formatting.Indented);
@@ -62,6 +68,19 @@ namespace TDSMBasicPlugin
             using (StreamWriter oOutFile = new StreamWriter(sFile))
             {
                 oOutFile.Write(json);
+            }
+        }
+
+        private void RemoveExpiredSettings()
+        {
+            for (int i = 0; i < oPlayerSettings.Count(); i++)
+            {
+                // Don't remove settings for players that are online
+                if (Main.player.Contains(oPlayerSettings[i].Player))
+                    continue;
+
+                if ((oPlayerSettings[i].LastUpdated - DateTime.Now).Days < nExpiration)
+                    oPlayerSettings.Remove(oPlayerSettings[i]);
             }
         }
 
@@ -154,6 +173,8 @@ namespace TDSMBasicPlugin
             oPlayerSetting.Player = Player;
             oPlayerSetting.PrivateMessageEnabled = true;
             oPlayerSetting.PlayerName = Player.name;
+            oPlayerSetting.IPAddress = Player.getIPAddress().Split(':')[0];
+            oPlayerSetting.LastUpdated = DateTime.Now;
             oPlayerSettings.Add(oPlayerSetting);
 
             return oPlayerSetting;
@@ -184,7 +205,9 @@ namespace TDSMBasicPlugin
             if (Player == null)
                 throw new Exception("Invalid player");
 
-            var oPlayerObject = from player in oPlayerSettings where player.PlayerName == Player.name select player;
+            string sIPAddress = Player.getIPAddress().Split(':')[0];
+
+            var oPlayerObject = from player in oPlayerSettings where player.PlayerName == Player.name && player.IPAddress == sIPAddress select player;
             PlayerPrivateMessageSettings oPlayerSetting = (PlayerPrivateMessageSettings)oPlayerObject.FirstOrDefault<PlayerPrivateMessageSettings>();
             if (oPlayerSetting is PlayerPrivateMessageSettings)
             {
@@ -199,7 +222,9 @@ namespace TDSMBasicPlugin
             if (Player == null)
                 throw new Exception("Invalid player");
 
-            var oPlayerObject = from player in oPlayerSettings where player.PlayerName == Player.name select player;
+            string sIPAddress = Player.getIPAddress().Split(':')[0];
+
+            var oPlayerObject = from player in oPlayerSettings where player.PlayerName == Player.name && player.IPAddress == sIPAddress select player;
             PlayerPrivateMessageSettings oPlayerSetting = (PlayerPrivateMessageSettings)oPlayerObject.FirstOrDefault<PlayerPrivateMessageSettings>();
             if (oPlayerSetting != null)
                 return true;
@@ -212,13 +237,19 @@ namespace TDSMBasicPlugin
             if (Player == null)
                 throw new Exception("Invalid player");
 
-            var oPlayerObject = from player in oPlayerSettings where player.PlayerName == Player.name select player;
+            string sIPAddress = Player.getIPAddress().Split(':')[0];
+
+            var oPlayerObject = from player in oPlayerSettings where player.PlayerName == Player.name && player.IPAddress == sIPAddress select player;
             PlayerPrivateMessageSettings oPlayerSetting = (PlayerPrivateMessageSettings)oPlayerObject.FirstOrDefault<PlayerPrivateMessageSettings>();
 
             if (oPlayerSetting != null)
             {
-                oPlayerSetting.LastMessageFrom = this.Server.GetPlayerByName(oPlayerSetting.LastMessageFromName);
-
+                Player oPlayer = this.Server.GetPlayerByName(oPlayerSetting.LastMessageFromName);
+                oPlayerSetting.LastMessageFrom = oPlayer;
+                oPlayerSetting.LastUpdated = DateTime.Now;
+                if (string.IsNullOrEmpty(oPlayerSetting.IPAddress))
+                    oPlayerSetting.IPAddress = oPlayer.getIPAddress().Split(':')[0];
+             
                 return oPlayerSetting.LastMessageFrom;
             }
             else
@@ -284,19 +315,29 @@ namespace TDSMBasicPlugin
         #endregion
     }
 
+    [JsonObject("Player Private Message Settings")]
     public class PlayerPrivateMessageSettings
     {
         [JsonIgnore]
         public Player Player { get; set; }
 
+        [JsonProperty]
         public string PlayerName { get; set; }
+
+        [JsonProperty]
+        public string IPAddress { get; set; }
 
         [JsonIgnore]
         public Player LastMessageFrom { get; set; }
 
+        [JsonProperty]
         public string LastMessageFromName { get; set; }
 
+        [JsonProperty]
         public bool PrivateMessageEnabled { get; set; }
+
+        [JsonProperty]
+        public DateTime LastUpdated { get; set; }
 
         public PlayerPrivateMessageSettings()
         {
@@ -308,6 +349,7 @@ namespace TDSMBasicPlugin
             this.Player = Player;
             this.LastMessageFrom = PlayerFrom;
             this.PrivateMessageEnabled = PrivateMessageFlag;
+            this.IPAddress = Player.getIPAddress();
         }
     }
 }
