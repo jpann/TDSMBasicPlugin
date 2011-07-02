@@ -19,6 +19,7 @@ namespace TDSMBasicPlugin
         private static string sPluginDir = null;
         private static string sItemExportFile = "items";
         private static PrivateMessageManager oPrivateMsgManager = null;
+        public static MyPlayer[] Players = new MyPlayer[Main.maxPlayers];
 
         public override void Load()
         {
@@ -72,7 +73,6 @@ namespace TDSMBasicPlugin
         }
 
         #region Hooks
-
         public override void onPlayerDeath(PlayerDeathEvent Event)
         {
 
@@ -83,26 +83,31 @@ namespace TDSMBasicPlugin
             if (isEnabled == false) { return; }
             string[] commands = Event.getMessage().ToLower().Split(' ');
             string sCommand = Event.getMessage().ToLower();
+
+            string sSenderName = ((Player)Event.getSender()).getName();
+
             if (commands.Length > 0)
             {
                 try
                 {
-                    string sPlayerCmdPrivMsg = @"/privmsg\s+(?<flag>[on|off]+)?";
-                    string sPlayerCmdHeal = @"/heal\s+(?<player>.+)?";
-                    string sPlayerCmdReply = @"/r\s+(?<msg>.+)?";
-                    string sPlayerCmdMessage = @"/msg\s+(?<player>[A-Z-a-z0-9\ ]+)\s+(?<msg>.+)?";
+                    string sPlayerCmdPrivMsg = @"(/pm|/privmsg)\s+(?<flag>[on|off]+)?";
+                    string sPlayerCmdHeal = @"/heal(?:\s+(?<player>.*))?";
+                    string sPlayerCmdReply = @"[/reply|/r]\s(?<msg>.+)?";
+                    string sPlayerCmdMessage = @"[/m|/msg]\s(?<player>[A-Z-a-z0-9]+)\s(?<msg>.+)?";
 
-                    Player oPlayer = ((Player)Event.getSender());
+                    MyPlayer oPlayer = Utility.FindPlayer(((Player)Event.getSender()).getName());
                     Match commandMatch;
 
-                    if (CheckForOp(oPlayer))
+                    if (oPlayer.IsOp())
                     {
                         // Op commands
                         commandMatch = Regex.Match(sCommand, sPlayerCmdHeal, RegexOptions.IgnoreCase);
                         if (commandMatch.Success)
                         {
                             // Heal
-                            Heal(Event.getSender(), commandMatch);
+                            string targetPlayerName = commandMatch.Groups["player"].Value;
+
+                            Heal(oPlayer, targetPlayerName);
                             Event.setCancelled(true);
                             return;
                         }
@@ -112,7 +117,9 @@ namespace TDSMBasicPlugin
                     if (commandMatch.Success)
                     {
                         // PrivMsg On/Off
-                        PrivateMessage(Event.getSender(), commandMatch);
+                        string flag = commandMatch.Groups["flag"].Value;
+
+                        PrivateMessageEnableDisable(oPlayer, flag);
                         Event.setCancelled(true);
                         return;
                     }
@@ -121,7 +128,9 @@ namespace TDSMBasicPlugin
                     if (commandMatch.Success)
                     {
                         // Reply
-                        ReplyMessage(Event.getSender(), commandMatch);
+                        string message = commandMatch.Groups["msg"].Value;
+
+                        ReplyMessage(oPlayer, message);
                         Event.setCancelled(true);
                         return;
                     }
@@ -130,7 +139,11 @@ namespace TDSMBasicPlugin
                     if (commandMatch.Success)
                     {
                         // Message
-                        PrivateMessage(Event.getSender(), commandMatch);
+                        string playerName = commandMatch.Groups["player"].Value;
+                        string message = commandMatch.Groups["msg"].Value;
+
+                        PrivateMessage(oPlayer, playerName, message);
+
                         Event.setCancelled(true);
                         return;
                     }
@@ -189,6 +202,12 @@ namespace TDSMBasicPlugin
 
         public override void onPlayerJoin(PlayerLoginEvent Event) 
         {
+            int nPlayerIndex = Event.getPlayer().whoAmi;
+
+            MyPlayer oPlayer = new MyPlayer(nPlayerIndex);
+
+            Players[nPlayerIndex] = oPlayer;
+
             Event.setCancelled(false);
         }
 
@@ -199,6 +218,12 @@ namespace TDSMBasicPlugin
 
         public override void onPlayerLogout(PlayerLogoutEvent Event)
         {
+            int nPlayerIndex = Event.getPlayer().whoAmi;
+
+            MyPlayer oPlayer = Players[nPlayerIndex];
+
+            Players[nPlayerIndex] = null;
+
             Event.setCancelled(false);
         }
 
@@ -258,209 +283,75 @@ namespace TDSMBasicPlugin
         #endregion
 
         #region Command Methods
-        public static void PrivateMessageEnableDisable(Sender sender, Match match)
+        /// <summary>
+        /// Privates the message enable disable.
+        /// </summary>
+        /// <param name="Player">The player.</param>
+        /// <param name="Flag">The flag.</param>
+        public static void PrivateMessageEnableDisable(MyPlayer Player, string Flag)
         {
-            if (!(sender is Player))
+            if (Player == null)
             {
                 return;
             }
 
-            if (match.Success)
+            if (!string.IsNullOrEmpty(Flag))
             {
-                string flag = match.Groups["flag"].Value;
-
-                if (flag.Equals("on"))
+                if (Flag.Equals("on"))
                 {
-                    oPrivateMsgManager.PrivateMessageEnableDisable((Player)sender, true);
+                    oPrivateMsgManager.PrivateMessageEnableDisable(Player, true);
                 }
-                else if (flag.Equals("off"))
+                else if (Flag.Equals("off"))
                 {
-                    oPrivateMsgManager.PrivateMessageEnableDisable((Player)sender, false);
+                    oPrivateMsgManager.PrivateMessageEnableDisable(Player, false);
                 }
             }
             else
             {
-                sender.sendMessage("Command Error: /privmsg <on|off>");
+                Player.SendMessage("Command Error: /privmsg <on|off>");
             }
         }
 
-        // Taken from the TDSM Forums but slightly modified
-        //public static void Give(Sender sender, string[] commands)
-        //{
-        //    string sCommand = Program.mergeStrArray(commands);
-
-        //    if (!(sender is Player))
-        //    {
-        //        return;
-        //    }
-
-        //    //TODO Need to redo this so it matches Heal()
-
-        //    // /give <item> <stack> <player>
-        //    Match match = Regex.Match(sCommand, @"/give\s+(?<item>[A-Z-a-z0-9\ ]+)\s+(?<stack>[0-9]+)\s+(?<player>.+)?", RegexOptions.IgnoreCase);
-        //    if (match.Success)
-        //    {
-        //        string itemName = match.Groups["item"].Value;
-        //        string stack = match.Groups["stack"].Value;
-        //        string playerName = match.Groups["player"].Value;
-
-        //        Player player = Program.server.GetPlayerByName(playerName);
-        //        if (player != null)
-        //        {
-        //            Item[] items = new Item[Main.maxItemTypes];
-        //            for (int i = 0; i < Main.maxItemTypes; i++)
-        //            {
-        //                items[i] = new Item();
-        //                items[i].SetDefaults(i);
-        //            }
-
-        //            Item item = null;
-        //            itemName = itemName.Replace(" ", "").ToLower();
-        //            for (int i = 0; i < Main.maxItemTypes; i++)
-        //            {
-        //                if (items[i].name != null)
-        //                {
-        //                    string genItemName = items[i].name.Replace(" ", "").Trim().ToLower();
-        //                    if (genItemName == itemName)
-        //                    {
-        //                        item = items[i];
-        //                    }
-        //                }
-        //            }
-
-        //            int itemType = -1;
-        //            bool assumed = false;
-        //            if (item != null)
-        //            {
-        //                itemType = item.type;
-        //            }
-        //            else
-        //            {
-        //                int assumedItem;
-        //                try
-        //                {
-        //                    assumedItem = Int32.Parse(itemName);
-        //                }
-        //                catch (Exception)
-        //                {
-        //                    sender.sendMessage("Item '" + itemName + "' not found!");
-        //                    return;
-        //                }
-
-        //                for (int i = 0; i < Main.maxItemTypes; i++)
-        //                {
-        //                    if (items[i].type == assumedItem)
-        //                    {
-        //                        itemType = items[i].type;
-        //                        assumed = true;
-        //                        break;
-        //                    }
-        //                }
-
-        //                if (!assumed)
-        //                {
-        //                    sender.sendMessage("Item '" + itemName + "' not found!");
-        //                    return;
-        //                }
-        //            }
-
-        //            //Clear Data
-        //            for (int i = 0; i < Main.maxItemTypes; i++)
-        //            {
-        //                items[i] = null;
-        //            }
-        //            items = null;
-
-        //            if (itemType != -1)
-        //            {
-
-        //                int stackSize;
-        //                try
-        //                {
-        //                    stackSize = Int32.Parse(stack);
-        //                }
-        //                catch (Exception)
-        //                {
-        //                    stackSize = 1;
-        //                }
-
-        //                Item.NewItem((int)player.position.X, (int)player.position.Y, player.width, player.height, itemType, stackSize, false);
-
-        //                Program.server.notifyOps("Giving " + player.name + " some " + itemType.ToString() + " {" + sender.getName() + "}", true);
-
-        //                return;
-        //            }
-        //        }
-        //        else
-        //        {
-        //            sender.sendMessage("Player '" + playerName + "' not found!");
-        //            return;
-        //        }
-        //    }
-        //    else
-        //    {
-        //        sender.sendMessage("Command Error: /give <item> <stack> <player>");
-        //    }
-        //}
-
-        // Heal player
-
-        public static void Heal(Sender sender, Match match)
+        /// <summary>
+        /// Heals the specified player.
+        /// </summary>
+        /// <param name="Player">The player.</param>
+        /// <param name="TargetPlayerName">Name of the target player.</param>
+        public static void Heal(MyPlayer Player, string TargetPlayerName)
         {
             int stack = 20;
-            Player player = null;
+            MyPlayer oTargetPlayer = null;
 
-            if (!(sender is Player))
+            if (Player == null)
             {
                 return;
             }
 
             try
             {
-                if (match.Success)
+                if (!string.IsNullOrEmpty(TargetPlayerName))
                 {
-                    string playerName = match.Groups["player"].Value;
+                    oTargetPlayer = Utility.FindPlayer(TargetPlayerName);
 
-                    player = Program.server.GetPlayerByName(playerName);
-                    if (player == null)
+                    if (oTargetPlayer == null)
                     {
-                        sender.sendMessage("Player '" + playerName + "' not found!");
+                        Player.SendMessage("Player '" + TargetPlayerName + "' not found!");
                         return;
                     }
                 }
                 else
                 {
-                    // Heal self
-                    if (!(sender is Player))
-                    {
-                        return;
-                    }
-
-                    player = ((Player)sender);
+                    oTargetPlayer = Player;
                 }
 
-                if (player != null)
+                if (oTargetPlayer != null)
                 {
-                    Item heart = GetItemById(58);
-                    Item mana = GetItemByName("star");
+                    oTargetPlayer.HealLife(stack);
+                    oTargetPlayer.HealMana(stack);
 
-                    if (heart == null || mana == null) // Heart or Mana Crystal not found!
-                    {
-                        sender.sendMessage("Heart and Mana Crystal items not found!");
-                        return;
-                    }
-
-                    for (int i = 0; i < stack; i++)
-                    {
-                        RestorePlayerHealth(sender, player);
-                        RestorePlayerMana(sender, player);
-                    }
-
-                    if ((Player)sender != player)
-                    {
-                        Program.server.notifyOps(string.Format("{0} is healing {1}", sender.getName(), player.name));
-                        player.sendMessage(string.Format("You were healed by {0}", sender.getName()));
-                    }
+                    //Server.notifyOps(string.Format("{0} is healing {1}", Player.Name, oTargetPlayer.Name), false);
+                    Player.SendMessage(string.Format("You healed {0}", oTargetPlayer.Name));
+                    oTargetPlayer.SendMessage(string.Format("You were healed by {0}", Player.Name));
 
                     return;
                 }
@@ -468,183 +359,87 @@ namespace TDSMBasicPlugin
             }
             catch (Exception er)
             {
-                sender.sendMessage(string.Format("Command Exception: {0}", er.Message));
-                Program.tConsole.WriteLine(string.Format("Exception executing command from {0}: {1}", sender.getName(), er.Message));
+                Player.SendMessage(string.Format("Command Error: {0}", er.Message));
+                Program.tConsole.WriteLine(string.Format("Exception executing command from {0}: {1}", Player.Name, er.Message));
                 Program.tConsole.WriteLine(string.Format("Exception Stack Trace:\n\r{0}", er.StackTrace));
             }
         }
 
-        // Reply to last received message
-        public static void ReplyMessage(Sender sender, Match match)
+        /// <summary>
+        /// Replies the message.
+        /// </summary>
+        /// <param name="Player">The player.</param>
+        /// <param name="Message">The message.</param>
+        public static void ReplyMessage(MyPlayer Player, string Message)
         {
-            if (!(sender is Player))
+            if (Player == null)
             {
                 return;
             }
 
-            if (match.Success)
+            if (!string.IsNullOrEmpty(Message))
             {
-                string message = match.Groups["msg"].Value;
-
                 try
                 {
-                    oPrivateMsgManager.SendReply((Player)sender, message);
+                    oPrivateMsgManager.SendReply(Player, Message);
                 }
                 catch (Exception er)
                 {
-                    sender.sendMessage(string.Format("Reply Error: {0}", er.Message));
+                    Player.SendMessage(string.Format("Reply Error: {0}", er.Message));
                     Console.WriteLine(string.Format("Reply Error: {0}", er.Message));
                 }
             }
             else
             {
-                sender.sendMessage("Command Error: /reply <message>");
+                Player.SendMessage("Command Error: /reply <message>");
             }
         }
 
-        // Private message a player
-        public static void PrivateMessage(Sender sender, Match match)
+        /// <summary>
+        /// Privates the message.
+        /// </summary>
+        /// <param name="Player">The player.</param>
+        /// <param name="PlayerNameTo">The player name to.</param>
+        /// <param name="Message">The message.</param>
+        public static void PrivateMessage(MyPlayer Player, string PlayerNameTo, string Message)
         {
-            if (!(sender is Player))
+            if (Player == null)
             {
                 return;
             }
 
-            if (match.Success)
+            try
             {
-                string playerName = match.Groups["player"].Value;
-                string message = match.Groups["msg"].Value;
-
-                Player player = Program.server.GetPlayerByName(playerName);
-                if (player != null)
+                MyPlayer oTargetPlayer = Utility.FindPlayer(PlayerNameTo);
+                if (oTargetPlayer != null)
                 {
                     try
                     {
-                        PrivateMessagePlayer((Player)sender, player, message);
+                        oPrivateMsgManager.SendMessage(oTargetPlayer, Player, Message, true);
                     }
                     catch (Exception er)
                     {
-                        sender.sendMessage(string.Format("Private Message Error: {0}", er.Message));
+                        Player.SendMessage(string.Format("Private Message Error: {0}", er.Message));
                         Console.WriteLine(string.Format("Private Message Error: {0}", er.Message));
                     }
                 }
                 else
                 {
-                    sender.sendMessage("Player not found!");
+                    Player.SendMessage("Player not found!");
                 }
             }
-            else
+            catch (Exception er)
             {
-                sender.sendMessage("Command Error: /msg <player> <message>");
+                Player.SendMessage(string.Format("Command Error: {0}", er.Message));
             }
         }
         #endregion
 
         #region Methods
-        public static void PrivateMessagePlayer(Player PlayerFrom, Player PlayerTo, string Message)
-        {
-            if (PlayerFrom == null || PlayerTo == null)
-                return;
-
-            oPrivateMsgManager.SendMessage(PlayerTo, PlayerFrom, Message, true); //test
-        }
-
-        public static void RestorePlayerHealth(Sender sender, Player player)
-        {
-            Item heart = GetItemById(58);
-
-            if (heart == null)
-            {
-                sender.sendMessage("Unable to heal: Unable to find heart item.");
-                return;
-            }
-
-            Item.NewItem((int)player.position.X, (int)player.position.Y, player.width, player.height, heart.type, 20, false);
-        }
-        
-        public static void RestorePlayerMana(Sender sender, Player player)
-        {
-            Item star = GetItemByName("star");
-
-            if (star == null)
-            {
-                sender.sendMessage("Unable to restore mana: Unable to find star item.");
-                return;
-            }
-
-            Item.NewItem((int)player.position.X, (int)player.position.Y, player.width, player.height, star.type, 20, false);
-        }
-
-        public static bool CheckForOp(Player player)
-        {
-            if (player.isOp())
-                return true;
-            else
-                return false;
-        }
-
-        public static Item GetItemById(int Id)
-        {
-            Item[] items = new Item[Main.maxItemTypes];
-            for (int i = 0; i < Main.maxItemTypes; i++)
-            {
-                items[i] = new Item();
-                items[i].SetDefaults(i);
-            }
-
-            Item item = null;
-            for (int i = 0; i < Main.maxItemTypes; i++)
-            {
-                if (items[i].name != null)
-                {
-                    if (i == Id)
-                    {
-                        item = items[i];
-                    }
-                }
-            }
-
-            for (int i = 0; i < Main.maxItemTypes; i++)
-            {
-                items[i] = null;
-            }
-            items = null;
-
-            return item;
-        }
-
-        public static Item GetItemByName(string ItemName)
-        {
-            Item[] items = new Item[Main.maxItemTypes];
-            for (int i = 0; i < Main.maxItemTypes; i++)
-            {
-                items[i] = new Item();
-                items[i].SetDefaults(i);
-            }
-
-            Item item = null;
-            ItemName = ItemName.Replace(" ", "").ToLower();
-            for (int i = 0; i < Main.maxItemTypes; i++)
-            {
-                if (items[i].name != null)
-                {
-                    string genItemName = items[i].name.Replace(" ", "").Trim().ToLower();
-                    if (genItemName == ItemName)
-                    {
-                        item = items[i];
-                    }
-                }
-            }
-
-            for (int i = 0; i < Main.maxItemTypes; i++)
-            {
-                items[i] = null;
-            }
-            items = null;
-
-            return item;
-        }
-
+        /// <summary>
+        /// Gets the plugin directory.
+        /// </summary>
+        /// <returns></returns>
         public static string GetPluginDirectory()
         {
             return sPluginDir;

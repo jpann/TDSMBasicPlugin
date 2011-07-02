@@ -50,9 +50,15 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ItemSerializer.cs" />
+    <Compile Include="PacketTypes.cs" />
+    <Compile Include="Player.cs" />
     <Compile Include="PrivateMessageManager.cs" />
     <Compile Include="TDSMBasicPlugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Utility.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="README.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -18,25 +18,38 @@ namespace TDSMBasicPlugin
         private string sMessageIndicator = "";
         private string sFromMessageFormat = "{0}<From: {1}> {2}";   // Parameters: <message indicator> <from> <message>
         private string sToMessageFormat = "{0}<To: {1}> {2}";       // Parameters: <message indicator> <to> <message>
-        private int[] nMessageColor = new int[] { 255, 127, 36 };
+        private Color oMessageColor = new Color(255, 127, 36);
         private int nExpiration = 30;
         private List<PlayerPrivateMessageSettings> oPlayerSettings = null;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PrivateMessageManager"/> class.
+        /// </summary>
         public PrivateMessageManager()
         {
             this.LoadPlayerSettings();
         }
 
+        /// <summary>
+        /// Releases unmanaged resources and performs other cleanup operations before the
+        /// <see cref="PrivateMessageManager"/> is reclaimed by garbage collection.
+        /// </summary>
         ~PrivateMessageManager()
         {
             this.SavePlayerSettings();
         }
 
+        /// <summary>
+        /// Unloads this instance.
+        /// </summary>
         public void Unload()
         {
             this.SavePlayerSettings();
         }
 
+        /// <summary>
+        /// Loads the player settings.
+        /// </summary>
         private void LoadPlayerSettings()
         {
             string sFile = Path.Combine(TDSMBasicPlugin.GetPluginDirectory(), sSettingsFile);
@@ -55,6 +68,9 @@ namespace TDSMBasicPlugin
             }
         }
 
+        /// <summary>
+        /// Saves the player settings.
+        /// </summary>
         private void SavePlayerSettings()
         {
             RemoveExpiredSettings();
@@ -71,20 +87,29 @@ namespace TDSMBasicPlugin
             }
         }
 
+        /// <summary>
+        /// Removes the expired settings.
+        /// </summary>
         private void RemoveExpiredSettings()
         {
             for (int i = 0; i < oPlayerSettings.Count(); i++)
             {
-                // Don't remove settings for players that are online
-                if (Main.player.Contains(oPlayerSettings[i].Player))
-                    continue;
+                if (oPlayerSettings[i].Player != null)
+                    // Don't remove settings for players that are online
+                    if (oPlayerSettings[i].Player.Active)
+                        continue;
 
                 if ((oPlayerSettings[i].LastUpdated - DateTime.Now).Days < nExpiration)
                     oPlayerSettings.Remove(oPlayerSettings[i]);
             }
         }
 
-        public void PrivateMessageEnableDisable(Player Player, bool EnableDisableFlag)
+        /// <summary>
+        /// Privates the message enable disable.
+        /// </summary>
+        /// <param name="Player">The player.</param>
+        /// <param name="EnableDisableFlag">if set to <c>true</c> [enable disable flag].</param>
+        public void PrivateMessageEnableDisable(MyPlayer Player, bool EnableDisableFlag)
         {
             if (Player == null)
                 throw new Exception("Invalid player");
@@ -98,35 +123,47 @@ namespace TDSMBasicPlugin
             oPlayerSetting.PrivateMessageEnabled = EnableDisableFlag;
 
             if (EnableDisableFlag)
-                Player.sendMessage("Private messaging is now enabled");
+                Player.SendMessage("Private messaging is now enabled");
             else
-                Player.sendMessage("Private messaging is now disabled");
+                Player.SendMessage("Private messaging is now disabled");
         }
 
-        public void SendReply(Player PlayerFrom, string Message)
+        /// <summary>
+        /// Sends the reply.
+        /// </summary>
+        /// <param name="PlayerFrom">The player from.</param>
+        /// <param name="Message">The message.</param>
+        public void SendReply(MyPlayer PlayerFrom, string Message)
         {
             if (PlayerFrom == null)
                 throw new Exception("Invalid player");
 
             if (!string.IsNullOrEmpty(Message))
             {
-                Player oPlayerTo = this.GetLastPlayerMessageFrom(PlayerFrom);
+                MyPlayer oPlayerTo = this.GetLastPlayerMessageFrom(PlayerFrom);
                 if (oPlayerTo != null)
                 {
                     this.SendMessage(oPlayerTo, PlayerFrom, Message, true);
                 }
                 else
                 {
-                    PlayerFrom.sendMessage("You have to recent players to reply to");
+                    PlayerFrom.SendMessage("You have to recent players to reply to");
                 }
             }
             else
             {
-                PlayerFrom.sendMessage("No message provided");
+                PlayerFrom.SendMessage("No message provided");
             }
         }
 
-        public void SendMessage(Player PlayerTo, Player PlayerFrom, string Message, bool IsPrivateMessage)
+        /// <summary>
+        /// Sends the message.
+        /// </summary>
+        /// <param name="PlayerTo">The player to.</param>
+        /// <param name="PlayerFrom">The player from.</param>
+        /// <param name="Message">The message.</param>
+        /// <param name="IsPrivateMessage">if set to <c>true</c> [is private message].</param>
+        public void SendMessage(MyPlayer PlayerTo, MyPlayer PlayerFrom, string Message, bool IsPrivateMessage)
         {
             string sPrivMessageIndicator = "";
 
@@ -144,27 +181,34 @@ namespace TDSMBasicPlugin
                 {
                     if (oPlayerToSetting.PrivateMessageEnabled)
                     {
-                        PlayerTo.sendMessage(string.Format(sFromMessageFormat, sPrivMessageIndicator, PlayerFrom.name, Message), 255, nMessageColor[0], nMessageColor[1], nMessageColor[2]);
-                        PlayerFrom.sendMessage(string.Format(sToMessageFormat, sPrivMessageIndicator, PlayerTo.name, Message), 255, nMessageColor[0], nMessageColor[1], nMessageColor[2]);
+                        PlayerTo.SendMessage(string.Format(sFromMessageFormat, sPrivMessageIndicator, PlayerFrom.Name, Message), oMessageColor);
+                        PlayerFrom.SendMessage(string.Format(sToMessageFormat, sPrivMessageIndicator, PlayerTo.Name, Message), oMessageColor);
+
                         this.UpdateLastMessageFrom(PlayerTo, PlayerFrom);
                     }
                     else
                     {
-                        PlayerFrom.sendMessage(string.Format("Player {0} has private messaging disabled", PlayerTo.name));
+                        PlayerFrom.SendMessage(string.Format("Player {0} has private messaging disabled", PlayerTo.Name));
                     }
                 }
                 else
                 {
-                    PlayerTo.sendMessage(string.Format(sFromMessageFormat, sPrivMessageIndicator, PlayerFrom.name, Message), 255, nMessageColor[0], nMessageColor[1], nMessageColor[2]);
-                    PlayerFrom.sendMessage(string.Format(sToMessageFormat, sPrivMessageIndicator, PlayerTo.name, Message), 255, nMessageColor[0], nMessageColor[1], nMessageColor[2]);
+                    PlayerTo.SendMessage(string.Format(sFromMessageFormat, sPrivMessageIndicator, PlayerFrom.Name, Message), oMessageColor);
+                    PlayerFrom.SendMessage(string.Format(sToMessageFormat, sPrivMessageIndicator, PlayerTo.Name, Message), oMessageColor);
+
                     this.UpdateLastMessageFrom(PlayerTo, PlayerFrom);
                 }
             }
             else
-                PlayerFrom.sendMessage("No message provided");
+                PlayerFrom.SendMessage("No message provided");
         }
 
-        public PlayerPrivateMessageSettings CreatePlayerSetting(Player Player)
+        /// <summary>
+        /// Creates the player setting.
+        /// </summary>
+        /// <param name="Player">The player.</param>
+        /// <returns></returns>
+        public PlayerPrivateMessageSettings CreatePlayerSetting(MyPlayer Player)
         {
             if (this.PlayerSettingExists(Player))
                 return null; // Player setting already exists
@@ -172,15 +216,15 @@ namespace TDSMBasicPlugin
             PlayerPrivateMessageSettings oPlayerSetting = new PlayerPrivateMessageSettings();
             oPlayerSetting.Player = Player;
             oPlayerSetting.PrivateMessageEnabled = true;
-            oPlayerSetting.PlayerName = Player.name;
-            oPlayerSetting.IPAddress = Player.getIPAddress().Split(':')[0];
+            oPlayerSetting.PlayerName = Player.Name;
+            oPlayerSetting.IPAddress = Player.IPAddress;
             oPlayerSetting.LastUpdated = DateTime.Now;
             oPlayerSettings.Add(oPlayerSetting);
 
             return oPlayerSetting;
         }
 
-        public void UpdateLastMessageFrom(Player PlayerTo, Player PlayerFrom)
+        public void UpdateLastMessageFrom(MyPlayer PlayerTo, MyPlayer PlayerFrom)
         {
             if (PlayerTo == null || PlayerFrom == null)
                 throw new Exception("Invalid player");
@@ -197,17 +241,22 @@ namespace TDSMBasicPlugin
             }
 
             oPlayerSetting.LastMessageFrom = PlayerFrom;
-            oPlayerSetting.LastMessageFromName = PlayerFrom.name;
+            oPlayerSetting.LastMessageFromName = PlayerFrom.Name;
         }
 
-        public PlayerPrivateMessageSettings GetPlayerSetting(Player Player)
+        /// <summary>
+        /// Gets the player setting.
+        /// </summary>
+        /// <param name="Player">The player.</param>
+        /// <returns></returns>
+        public PlayerPrivateMessageSettings GetPlayerSetting(MyPlayer Player)
         {
             if (Player == null)
                 throw new Exception("Invalid player");
 
-            string sIPAddress = Player.getIPAddress().Split(':')[0];
+            string sIPAddress = Player.IPAddress;
 
-            var oPlayerObject = from player in oPlayerSettings where player.PlayerName == Player.name && player.IPAddress == sIPAddress select player;
+            var oPlayerObject = from player in oPlayerSettings where player.PlayerName == Player.Name && player.IPAddress == sIPAddress select player;
             PlayerPrivateMessageSettings oPlayerSetting = (PlayerPrivateMessageSettings)oPlayerObject.FirstOrDefault<PlayerPrivateMessageSettings>();
             if (oPlayerSetting is PlayerPrivateMessageSettings)
             {
@@ -217,14 +266,19 @@ namespace TDSMBasicPlugin
                 return null;
         }
 
-        public bool PlayerSettingExists(Player Player)
+        /// <summary>
+        /// Players the setting exists.
+        /// </summary>
+        /// <param name="Player">The player.</param>
+        /// <returns></returns>
+        public bool PlayerSettingExists(MyPlayer Player)
         {
             if (Player == null)
                 throw new Exception("Invalid player");
 
-            string sIPAddress = Player.getIPAddress().Split(':')[0];
+            string sIPAddress = Player.IPAddress;
 
-            var oPlayerObject = from player in oPlayerSettings where player.PlayerName == Player.name && player.IPAddress == sIPAddress select player;
+            var oPlayerObject = from player in oPlayerSettings where player.PlayerName == Player.Name && player.IPAddress == sIPAddress select player;
             PlayerPrivateMessageSettings oPlayerSetting = (PlayerPrivateMessageSettings)oPlayerObject.FirstOrDefault<PlayerPrivateMessageSettings>();
             if (oPlayerSetting != null)
                 return true;
@@ -232,23 +286,36 @@ namespace TDSMBasicPlugin
                 return false;
         }
 
-        public Player GetLastPlayerMessageFrom(Player Player)
+        //TODO Need to fix this. Replies go to self.
+        /// <summary>
+        /// Gets the last player message from.
+        /// </summary>
+        /// <param name="Player">The player.</param>
+        /// <returns></returns>
+        public MyPlayer GetLastPlayerMessageFrom(MyPlayer Player)
         {
             if (Player == null)
                 throw new Exception("Invalid player");
 
-            string sIPAddress = Player.getIPAddress().Split(':')[0];
+            string sIPAddress = Player.IPAddress;
 
-            var oPlayerObject = from player in oPlayerSettings where player.PlayerName == Player.name && player.IPAddress == sIPAddress select player;
+            var oPlayerObject = from player in oPlayerSettings where player.PlayerName == Player.Name && player.IPAddress == sIPAddress select player;
             PlayerPrivateMessageSettings oPlayerSetting = (PlayerPrivateMessageSettings)oPlayerObject.FirstOrDefault<PlayerPrivateMessageSettings>();
 
             if (oPlayerSetting != null)
             {
-                Player oPlayer = this.Server.GetPlayerByName(oPlayerSetting.LastMessageFromName);
-                oPlayerSetting.LastMessageFrom = oPlayer;
+                if (string.IsNullOrEmpty(oPlayerSetting.LastMessageFromName))
+                    return null;
+
+                MyPlayer oToPlayer = Utility.FindPlayer(oPlayerSetting.LastMessageFromName);
+                if (oToPlayer == null)
+                    return null;
+
+                oPlayerSetting.LastMessageFrom = oToPlayer;
                 oPlayerSetting.LastUpdated = DateTime.Now;
+                oPlayerSetting.LastMessageFromName = oToPlayer.Name;
                 if (string.IsNullOrEmpty(oPlayerSetting.IPAddress))
-                    oPlayerSetting.IPAddress = oPlayer.getIPAddress().Split(':')[0];
+                    oPlayerSetting.IPAddress = Player.IPAddress;
              
                 return oPlayerSetting.LastMessageFrom;
             }
@@ -301,25 +368,28 @@ namespace TDSMBasicPlugin
             }
         }
 
-        public int[] MessageColor
+        public Color MessageColor
         {
             get
             {
-                return nMessageColor;
+                return oMessageColor;
             }
             set
             {
-                nMessageColor = value;
+                oMessageColor = value;
             }
         }
         #endregion
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     [JsonObject("Player Private Message Settings")]
     public class PlayerPrivateMessageSettings
     {
         [JsonIgnore]
-        public Player Player { get; set; }
+        public MyPlayer Player { get; set; }
 
         [JsonProperty]
         public string PlayerName { get; set; }
@@ -328,7 +398,7 @@ namespace TDSMBasicPlugin
         public string IPAddress { get; set; }
 
         [JsonIgnore]
-        public Player LastMessageFrom { get; set; }
+        public MyPlayer LastMessageFrom { get; set; }
 
         [JsonProperty]
         public string LastMessageFromName { get; set; }
@@ -344,12 +414,12 @@ namespace TDSMBasicPlugin
             this.PrivateMessageEnabled = true;
         }
 
-        public PlayerPrivateMessageSettings(Player Player, Player PlayerFrom, bool PrivateMessageFlag)
+        public PlayerPrivateMessageSettings(MyPlayer Player, MyPlayer PlayerFrom, bool PrivateMessageFlag)
         {
             this.Player = Player;
             this.LastMessageFrom = PlayerFrom;
             this.PrivateMessageEnabled = PrivateMessageFlag;
-            this.IPAddress = Player.getIPAddress();
+            this.IPAddress = Player.IPAddress;
         }
     }
 }
